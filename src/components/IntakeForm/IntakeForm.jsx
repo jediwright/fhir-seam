@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { initMeta } from '../../store/ydoc'
 import { useIntakeComplete, useOnlineStatus } from '../../hooks/useYjs'
+import { useBundlePreview } from '../../hooks/useBundlePreview'
 import { DemographicsSection } from './DemographicsSection'
 import { ClinicalSection } from './ClinicalSection'
 import { InsuranceSection } from './InsuranceSection'
@@ -8,13 +9,13 @@ import { InsuranceSection } from './InsuranceSection'
 /**
  * IntakeForm — assembles the three intake sections.
  *
- * Phase 2 additions:
- *   - Progress bar (completed sections / 3)
- *   - Section completion badges with counts
- *   - Submit area reflects online status and completion state
- *   - Submit button disabled with clear explanation when offline or incomplete
+ * Phase 3 additions:
+ *   - useBundlePreview() wired into submit area
+ *   - Bundle validation errors shown in submit area when form is complete
+ *     but bundle fails client-side FHIR validation
+ *   - Submit gate now requires both section completion AND bundle validity
  *
- * Phase 5: Wire submission state machine into the submit button.
+ * Phase 5: Replace SubmitPlaceholder with full submission state machine.
  */
 export function IntakeForm() {
   useEffect(() => {
@@ -23,10 +24,14 @@ export function IntakeForm() {
 
   const { isComplete, sections } = useIntakeComplete()
   const isOnline = useOnlineStatus()
+  const { validation, isReady } = useBundlePreview()
 
   const completedCount = Object.values(sections).filter(Boolean).length
   const totalSections = 3
   const progressPct = Math.round((completedCount / totalSections) * 100)
+
+  // Submit is enabled only when: online + sections complete + bundle valid
+  const canSubmit = isOnline && isComplete && isReady
 
   return (
     <div className="space-y-4">
@@ -55,7 +60,7 @@ export function IntakeForm() {
       <ClinicalSection />
       <InsuranceSection />
 
-      {/* Submit area — Phase 5 replaces this with the full state machine */}
+      {/* Submit area */}
       <div className="intake-section">
         <div className="flex items-center justify-between gap-4">
           <div className="flex-1 min-w-0">
@@ -65,14 +70,24 @@ export function IntakeForm() {
                 ? 'You are offline. Reconnect to submit — your data is saved.'
                 : !isComplete
                 ? 'Complete all required fields to submit.'
-                : 'Ready to submit. All required fields are complete.'}
+                : !isReady
+                ? 'Bundle validation failed — see errors below.'
+                : 'Ready to submit. Your intake will be sent to the clinic system.'}
             </p>
+
+            {/* Bundle validation errors — only shown when sections complete but bundle invalid */}
+            {isComplete && !isReady && validation.errors.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {validation.errors.map((err, i) => (
+                  <p key={i} className="text-xs font-mono text-red-500">· {err}</p>
+                ))}
+              </div>
+            )}
           </div>
 
-          <SubmitPlaceholder isComplete={isComplete} isOnline={isOnline} />
+          <SubmitPlaceholder canSubmit={canSubmit} isOnline={isOnline} isComplete={isComplete} />
         </div>
 
-        {/* Required fields legend */}
         <p className="text-xs text-clinical-300 mt-4 pt-3 border-t border-clinical-100">
           <span className="text-red-400">*</span> Required fields · Your data is saved locally and sent to the clinic only on submission
         </p>
@@ -97,19 +112,17 @@ function SectionBadge({ label, complete }) {
   )
 }
 
-function SubmitPlaceholder({ isComplete, isOnline }) {
-  const ready = isComplete && isOnline
-
+function SubmitPlaceholder({ canSubmit, isOnline, isComplete }) {
   return (
     <button
       disabled
       title={
-        !isOnline ? 'Offline — reconnect to submit' :
+        !isOnline   ? 'Offline — reconnect to submit' :
         !isComplete ? 'Complete required fields to submit' :
-        'Submission available in Phase 5'
+                     'Submission available in Phase 5'
       }
       className={`flex-shrink-0 px-6 py-2.5 rounded text-sm font-medium transition-colors
-        ${ready
+        ${canSubmit
           ? 'bg-clinical-800 text-white opacity-60 cursor-not-allowed'
           : 'bg-clinical-100 text-clinical-400 cursor-not-allowed'
         }`}

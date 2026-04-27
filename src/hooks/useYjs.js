@@ -317,3 +317,53 @@ export function useOnlineStatus() {
 
   return isOnline
 }
+
+// ─── FHIR Bundle Hook (Phase 3) ───────────────────────────────────────────────
+
+import { buildIntakeBundle, validateBundle } from '../lib/fhir'
+
+/**
+ * useFhirBundle — reactively builds and validates a FHIR Bundle from live intake state.
+ *
+ * Rebuilds whenever any intake field changes. Returns both the bundle and
+ * the validation result so the submit area can show specific missing fields
+ * before the POST is attempted.
+ *
+ * Also exposes window.__fhirDebug() in development for manual bundle inspection
+ * in the browser console — run it to see the exact FHIR Bundle that would be POSTed.
+ *
+ * @returns {{ bundle: Object, validation: { valid: boolean, errors: string[] } }}
+ */
+export function useFhirBundle() {
+  const demographics = useIntakeDemographics()
+  const clinical     = useIntakeClinical()
+  const insurance    = useIntakeInsurance()
+
+  // Build a plain-object snapshot of intake state for the pure fhir.js function.
+  // fhir.js expects a Y.Map-like interface (.get()), so we wrap the plain objects.
+  const intakeSnapshot = {
+    get: (key) => {
+      if (key === 'demographics') return demographics
+      if (key === 'clinical')     return clinical
+      if (key === 'insurance')    return insurance
+      return {}
+    }
+  }
+
+  const bundle     = buildIntakeBundle(intakeSnapshot)
+  const validation = validateBundle(bundle)
+
+  // Dev helper — expose to browser console so you can inspect the exact bundle
+  // that would be POSTed: window.__fhirDebug()
+  if (typeof window !== 'undefined') {
+    window.__fhirDebug = () => {
+      console.group('FHIR Bundle — fhir-seam debug')
+      console.log('Bundle:', JSON.stringify(bundle, null, 2))
+      console.log('Validation:', validation)
+      console.groupEnd()
+      return bundle
+    }
+  }
+
+  return { bundle, validation }
+}
