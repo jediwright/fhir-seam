@@ -10,13 +10,10 @@
  *   permanent-failure   → HTTP 500, fatal error OperationOutcome
  */
 
-// Tell Vercel to parse the request body as JSON automatically
+// Disable Vercel's built-in body parser — we read and parse the raw body
+// ourselves to handle application/fhir+json content type correctly.
 export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '1mb',
-    },
-  },
+  api: { bodyParser: false },
 }
 
 const CORS_HEADERS = {
@@ -26,7 +23,23 @@ const CORS_HEADERS = {
   'Content-Type': 'application/fhir+json',
 }
 
-export default function handler(req, res) {
+/** Read the raw request body and parse as JSON. */
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let data = ''
+    req.on('data', chunk => { data += chunk })
+    req.on('end', () => {
+      try {
+        resolve(data ? JSON.parse(data) : null)
+      } catch {
+        resolve(null)
+      }
+    })
+    req.on('error', reject)
+  })
+}
+
+export default async function handler(req, res) {
   // CORS preflight
   if (req.method === 'OPTIONS') {
     Object.entries(CORS_HEADERS).forEach(([k, v]) => res.setHeader(k, v))
@@ -69,8 +82,8 @@ export default function handler(req, res) {
     )
   }
 
-  // ─── Structural validation (success mode) ──────────────────────────────────
-  const body = req.body
+  // ─── Parse body ─────────────────────────────────────────────────────────────
+  const body = await readBody(req)
 
   if (!body || body.resourceType !== 'Bundle') {
     return res.status(422).json(
@@ -113,8 +126,7 @@ export default function handler(req, res) {
   if (patientErrors.length > 0) {
     return res.status(422).json(
       operationOutcome('error', 'invalid',
-        patientErrors[0].message,
-        [patientErrors[0].expression]
+        patientErrors[0].message, [patientErrors[0].expression]
       )
     )
   }
@@ -133,15 +145,13 @@ export default function handler(req, res) {
   if (qrErrors.length > 0) {
     return res.status(422).json(
       operationOutcome('error', 'invalid',
-        qrErrors[0].message,
-        [qrErrors[0].expression]
+        qrErrors[0].message, [qrErrors[0].expression]
       )
     )
   }
 
   // ─── Success ────────────────────────────────────────────────────────────────
   const outcomeId = generateId()
-
   return res.status(200).json({
     resourceType: 'OperationOutcome',
     id: outcomeId,
