@@ -152,7 +152,7 @@ function AboutView() {
             ['1', 'Scaffold + Data Model',   '✓ complete'],
             ['2', 'Intake Form UI',           '✓ complete'],
             ['3', 'FHIR Bundle Construction', '✓ complete'],
-            ['4', 'Mock FHIR Endpoint',       'planned'],
+            ['4', 'Mock FHIR Endpoint',       '✓ complete'],
             ['5', 'Submission State Machine', 'planned'],
             ['6', 'Deployment',              'planned'],
           ].map(([phase, label, status]) => (
