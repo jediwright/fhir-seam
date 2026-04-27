@@ -1,15 +1,22 @@
 import { useIntakeDemographics } from '../../hooks/useYjs'
 import { updateDemographics } from '../../store/ydoc'
+import { useValidation, demographicsRules } from '../../hooks/useValidation'
+import { FieldError } from '../FieldError'
 
 /**
  * DemographicsSection — patient identity fields.
  * Save-on-change: every field change calls updateDemographics() immediately.
- * No save button. Persistence is automatic via Y.js + IndexedDB.
+ * Validation: errors shown only after a field is blurred (touched).
  */
 export function DemographicsSection() {
   const demo = useIntakeDemographics()
+  const { touch, showError } = useValidation(demographicsRules, demo)
 
   const set = (field) => (e) => updateDemographics({ [field]: e.target.value })
+  const blur = (field) => () => touch(field)
+
+  const fieldClass = (field) =>
+    `field-input ${showError(field) ? 'border-red-400 focus:ring-red-400' : ''}`
 
   return (
     <div className="intake-section">
@@ -22,12 +29,14 @@ export function DemographicsSection() {
           </label>
           <input
             type="text"
-            className="field-input"
+            className={fieldClass('firstName')}
             value={demo.firstName ?? ''}
             onChange={set('firstName')}
+            onBlur={blur('firstName')}
             placeholder="Given name"
             autoComplete="given-name"
           />
+          <FieldError message={showError('firstName')} />
         </div>
         <div>
           <label className="field-label">
@@ -35,12 +44,14 @@ export function DemographicsSection() {
           </label>
           <input
             type="text"
-            className="field-input"
+            className={fieldClass('lastName')}
             value={demo.lastName ?? ''}
             onChange={set('lastName')}
+            onBlur={blur('lastName')}
             placeholder="Family name"
             autoComplete="family-name"
           />
+          <FieldError message={showError('lastName')} />
         </div>
       </div>
 
@@ -51,20 +62,23 @@ export function DemographicsSection() {
           </label>
           <input
             type="date"
-            className="field-input"
+            className={fieldClass('dateOfBirth')}
             value={demo.dateOfBirth ?? ''}
             onChange={set('dateOfBirth')}
+            onBlur={blur('dateOfBirth')}
             autoComplete="bday"
           />
+          <FieldError message={showError('dateOfBirth')} />
         </div>
         <div>
           <label className="field-label">
             Gender <span className="field-required">*</span>
           </label>
           <select
-            className="field-input"
+            className={fieldClass('gender')}
             value={demo.gender ?? ''}
             onChange={set('gender')}
+            onBlur={blur('gender')}
           >
             <option value="">Select…</option>
             <option value="male">Male</option>
@@ -72,6 +86,7 @@ export function DemographicsSection() {
             <option value="other">Other</option>
             <option value="unknown">Prefer not to say</option>
           </select>
+          <FieldError message={showError('gender')} />
         </div>
       </div>
 

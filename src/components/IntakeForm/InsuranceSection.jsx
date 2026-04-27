@@ -1,10 +1,14 @@
 import { useIntakeInsurance } from '../../hooks/useYjs'
 import { updateInsurance } from '../../store/ydoc'
+import { useValidation, insuranceRules } from '../../hooks/useValidation'
+import { FieldError } from '../FieldError'
 
 export function InsuranceSection() {
   const insurance = useIntakeInsurance()
+  const { touch, showError } = useValidation(insuranceRules, insurance)
 
   const set = (field) => (e) => updateInsurance({ [field]: e.target.value })
+  const blur = (field) => () => touch(field)
 
   return (
     <div className="intake-section">
@@ -16,11 +20,13 @@ export function InsuranceSection() {
         </label>
         <input
           type="text"
-          className="field-input"
+          className={`field-input ${showError('provider') ? 'border-red-400 focus:ring-red-400' : ''}`}
           value={insurance.provider ?? ''}
           onChange={set('provider')}
+          onBlur={blur('provider')}
           placeholder="e.g. Blue Cross Blue Shield, Aetna, United Healthcare"
         />
+        <FieldError message={showError('provider')} />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -30,11 +36,13 @@ export function InsuranceSection() {
           </label>
           <input
             type="text"
-            className="field-input"
+            className={`field-input ${showError('memberId') ? 'border-red-400 focus:ring-red-400' : ''}`}
             value={insurance.memberId ?? ''}
             onChange={set('memberId')}
+            onBlur={blur('memberId')}
             placeholder="Member ID from your insurance card"
           />
+          <FieldError message={showError('memberId')} />
         </div>
         <div>
           <label className="field-label">Group Number</label>

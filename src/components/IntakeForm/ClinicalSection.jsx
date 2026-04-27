@@ -1,10 +1,14 @@
 import { useIntakeClinical } from '../../hooks/useYjs'
 import { updateClinical } from '../../store/ydoc'
+import { useValidation, clinicalRules } from '../../hooks/useValidation'
+import { FieldError } from '../FieldError'
 
 export function ClinicalSection() {
   const clinical = useIntakeClinical()
+  const { touch, showError } = useValidation(clinicalRules, clinical)
 
   const set = (field) => (e) => updateClinical({ [field]: e.target.value })
+  const blur = (field) => () => touch(field)
 
   return (
     <div className="intake-section">
@@ -15,12 +19,14 @@ export function ClinicalSection() {
           Reason for Visit <span className="field-required">*</span>
         </label>
         <textarea
-          className="field-input resize-none"
+          className={`field-input resize-none ${showError('reasonForVisit') ? 'border-red-400 focus:ring-red-400' : ''}`}
           rows={3}
           value={clinical.reasonForVisit ?? ''}
           onChange={set('reasonForVisit')}
+          onBlur={blur('reasonForVisit')}
           placeholder="Brief description of your primary concern or reason for this appointment"
         />
+        <FieldError message={showError('reasonForVisit')} />
       </div>
 
       <div>
