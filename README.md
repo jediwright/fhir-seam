@@ -84,5 +84,5 @@ doc.getMap('submissions') → keyed by client UUID; full FHIR bundle + status + 
 
 ## License
 
-MIT — J. Wright / Systems of Thought  
+MIT — Jedi Wright / Systems of Thought  
 AI-assisted research and analysis: Claude Sonnet 4.6 / Anthropic
