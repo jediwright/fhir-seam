@@ -12,8 +12,7 @@ Prototype 3 in the [Systems of Thought](https://systemsofthought.com) local-firs
 
 ## The Architectural Argument
 
-checkout-seam proved that local-first architecture works for commerce — every operation offline except the Stripe payment POST. fhir-seam proves the same argument in a higher-stakes domain, and introduces a harder version of the seam problem.
-
+checkout-seam proved that local-first architecture works for commerce — every operation ran offline from local IndexedDB except one: the payment POST. fhir-seam proves the same argument in a higher-stakes domain and introduces a harder version of the seam problem.
 ```
 client (Y.js/IndexedDB) ──FHIR Bundle POST──▶ mock EHR (stateless) ──▶ client (Y.js/IndexedDB)
 ```
