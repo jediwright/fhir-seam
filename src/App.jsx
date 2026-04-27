@@ -3,6 +3,7 @@ import { IntakeForm } from './components/IntakeForm/IntakeForm'
 import { OfflineBanner } from './components/OfflineBanner'
 import { PersistenceIndicator } from './components/PersistenceIndicator'
 import { BundlePreview } from './components/BundlePreview'
+import { SubmissionHistory } from './components/SubmissionHistory'
 import { useOnlineStatus, useSubmissionCount } from './hooks/useYjs'
 
 function App() {
@@ -24,19 +25,15 @@ function App() {
               fhir-seam · local-first prototype
             </p>
           </div>
-
           <div className="flex items-center gap-1">
-            <span className={`w-1.5 h-1.5 rounded-full mr-2 ${
-              isOnline ? 'bg-emerald-400' : 'bg-amber-400'
-            }`} />
+            <span className={`w-1.5 h-1.5 rounded-full mr-2 ${isOnline ? 'bg-emerald-400' : 'bg-amber-400'}`} />
             <NavButton active={view === 'intake'} onClick={() => setView('intake')}>
               Intake Form
             </NavButton>
             <NavButton active={view === 'submissions'} onClick={() => setView('submissions')}>
               Submissions
               {submissionCount > 0 && (
-                <span className="ml-1.5 bg-clinical-700 text-white text-xs font-mono
-                                 px-1.5 py-0.5 rounded-full leading-none">
+                <span className="ml-1.5 bg-clinical-700 text-white text-xs font-mono px-1.5 py-0.5 rounded-full leading-none">
                   {submissionCount}
                 </span>
               )}
@@ -53,9 +50,7 @@ function App() {
           <>
             <div className="mb-6 flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-semibold text-clinical-900">
-                  Health History & Intake
-                </h2>
+                <h2 className="text-xl font-semibold text-clinical-900">Health History & Intake</h2>
                 <p className="text-sm text-clinical-500 mt-1">
                   Your information is saved automatically on this device.
                 </p>
@@ -65,17 +60,14 @@ function App() {
             <IntakeForm />
           </>
         )}
-
-        {view === 'submissions' && <SubmissionsPlaceholder />}
+        {view === 'submissions' && <SubmissionHistory />}
         {view === 'about' && <AboutView />}
       </main>
 
       <footer className="border-t border-clinical-200 mt-16 px-6 py-6">
         <div className="max-w-2xl mx-auto text-xs text-clinical-400 font-mono">
           <p>fhir-seam · Prototype 3 · Systems of Thought · Local-First Series</p>
-          <p className="mt-1">
-            Your intake data lives on this device only. Nothing is sent to any server until you submit.
-          </p>
+          <p className="mt-1">Your intake data lives on this device only. Nothing is sent to any server until you submit.</p>
         </div>
       </footer>
     </div>
@@ -87,29 +79,10 @@ function NavButton({ active, onClick, children }) {
     <button
       onClick={onClick}
       className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center
-        ${active
-          ? 'bg-clinical-900 text-white'
-          : 'text-clinical-600 hover:bg-clinical-100'
-        }`}
+        ${active ? 'bg-clinical-900 text-white' : 'text-clinical-600 hover:bg-clinical-100'}`}
     >
       {children}
     </button>
-  )
-}
-
-function SubmissionsPlaceholder() {
-  const count = useSubmissionCount()
-  return (
-    <div className="intake-section text-center py-12">
-      <p className="text-clinical-500 text-sm">
-        {count === 0
-          ? 'No submissions yet. Complete and submit the intake form to see your submission history here.'
-          : `${count} submission${count !== 1 ? 's' : ''} — full view coming in Phase 5.`}
-      </p>
-      <p className="text-xs text-clinical-400 font-mono mt-2">
-        Submissions view · Phase 5
-      </p>
-    </div>
   )
 }
 
@@ -153,21 +126,18 @@ function AboutView() {
             ['2', 'Intake Form UI',           '✓ complete'],
             ['3', 'FHIR Bundle Construction', '✓ complete'],
             ['4', 'Mock FHIR Endpoint',       '✓ complete'],
-            ['5', 'Submission State Machine', 'planned'],
-            ['6', 'Deployment',              'planned'],
+            ['5', 'Submission State Machine', '✓ complete'],
+            ['6', 'Deployment',              '✓ complete'],
           ].map(([phase, label, status]) => (
             <div key={phase} className="flex items-center gap-3">
               <span className="text-clinical-400">Phase {phase}</span>
               <span>{label}</span>
-              <span className={status.startsWith('✓') ? 'text-emerald-600' : 'text-clinical-400'}>
-                {status}
-              </span>
+              <span className="text-emerald-600">{status}</span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Phase 3: Live FHIR bundle preview — shows what will be POSTed */}
       <BundlePreview />
 
       <div className="intake-section">

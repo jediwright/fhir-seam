@@ -1,41 +1,50 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { initMeta } from '../../store/ydoc'
-import { useIntakeComplete, useOnlineStatus } from '../../hooks/useYjs'
+import { useIntakeComplete, useOnlineStatus, useLatestSubmission } from '../../hooks/useYjs'
 import { useBundlePreview } from '../../hooks/useBundlePreview'
+import { submitIntake, retrySubmission, isTerminal } from '../../store/submission'
 import { DemographicsSection } from './DemographicsSection'
 import { ClinicalSection } from './ClinicalSection'
 import { InsuranceSection } from './InsuranceSection'
+import { SubmitButton } from '../SubmitButton'
+import { SubmissionStatus } from '../SubmissionStatus'
 
-/**
- * IntakeForm — assembles the three intake sections.
- *
- * Phase 3 additions:
- *   - useBundlePreview() wired into submit area
- *   - Bundle validation errors shown in submit area when form is complete
- *     but bundle fails client-side FHIR validation
- *   - Submit gate now requires both section completion AND bundle validity
- *
- * Phase 5: Replace SubmitPlaceholder with full submission state machine.
- */
 export function IntakeForm() {
-  useEffect(() => {
-    initMeta()
-  }, [])
+  useEffect(() => { initMeta() }, [])
 
   const { isComplete, sections } = useIntakeComplete()
   const isOnline = useOnlineStatus()
   const { validation, isReady } = useBundlePreview()
+  const latestSubmission = useLatestSubmission()
+  const [submitting, setSubmitting] = useState(false)
 
   const completedCount = Object.values(sections).filter(Boolean).length
   const totalSections = 3
   const progressPct = Math.round((completedCount / totalSections) * 100)
 
-  // Submit is enabled only when: online + sections complete + bundle valid
-  const canSubmit = isOnline && isComplete && isReady
+  const canSubmit = isOnline && isComplete && isReady && !submitting &&
+    (!latestSubmission || !isTerminal(latestSubmission.status) && latestSubmission.status !== 'submitting')
+
+  const handleSubmit = async (mockMode) => {
+    setSubmitting(true)
+    try {
+      await submitIntake(mockMode === 'success' ? null : mockMode)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleRetry = async (submissionId, mockMode) => {
+    setSubmitting(true)
+    try {
+      await retrySubmission(submissionId, mockMode === 'success' ? null : mockMode)
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return (
     <div className="space-y-4">
-
       {/* Progress bar */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
@@ -62,30 +71,37 @@ export function IntakeForm() {
 
       {/* Submit area */}
       <div className="intake-section">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-clinical-800">Submit Intake</p>
-            <p className="text-xs text-clinical-400 mt-0.5">
-              {!isOnline
-                ? 'You are offline. Reconnect to submit — your data is saved.'
-                : !isComplete
-                ? 'Complete all required fields to submit.'
-                : !isReady
-                ? 'Bundle validation failed — see errors below.'
-                : 'Ready to submit. Your intake will be sent to the clinic system.'}
-            </p>
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-clinical-800">Submit Intake</p>
+          <p className="text-xs text-clinical-400">
+            {!isOnline
+              ? 'You are offline. Reconnect to submit — your data is saved.'
+              : !isComplete
+              ? 'Complete all required fields to submit.'
+              : latestSubmission?.status === 'accepted'
+              ? 'Your intake has been received by the clinic.'
+              : 'Ready to submit. Your intake will be sent to the clinic system.'}
+          </p>
 
-            {/* Bundle validation errors — only shown when sections complete but bundle invalid */}
-            {isComplete && !isReady && validation.errors.length > 0 && (
-              <div className="mt-2 space-y-1">
-                {validation.errors.map((err, i) => (
-                  <p key={i} className="text-xs font-mono text-red-500">· {err}</p>
-                ))}
-              </div>
-            )}
-          </div>
+          {isComplete && !isReady && validation.errors.length > 0 && (
+            <div className="space-y-1">
+              {validation.errors.map((err, i) => (
+                <p key={i} className="text-xs font-mono text-red-500">· {err}</p>
+              ))}
+            </div>
+          )}
+        </div>
 
-          <SubmitPlaceholder canSubmit={canSubmit} isOnline={isOnline} isComplete={isComplete} />
+        <div className="mt-4">
+          <SubmitButton
+            canSubmit={canSubmit}
+            isOnline={isOnline}
+            isComplete={isComplete}
+            currentSubmission={latestSubmission}
+            onSubmit={handleSubmit}
+            onRetry={handleRetry}
+          />
+          <SubmissionStatus submission={latestSubmission} />
         </div>
 
         <p className="text-xs text-clinical-300 mt-4 pt-3 border-t border-clinical-100">
@@ -95,8 +111,6 @@ export function IntakeForm() {
     </div>
   )
 }
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function SectionBadge({ label, complete }) {
   return (
@@ -109,25 +123,5 @@ function SectionBadge({ label, complete }) {
       <span className="text-xs">{complete ? '✓' : '○'}</span>
       {label}
     </div>
-  )
-}
-
-function SubmitPlaceholder({ canSubmit, isOnline, isComplete }) {
-  return (
-    <button
-      disabled
-      title={
-        !isOnline   ? 'Offline — reconnect to submit' :
-        !isComplete ? 'Complete required fields to submit' :
-                     'Submission available in Phase 5'
-      }
-      className={`flex-shrink-0 px-6 py-2.5 rounded text-sm font-medium transition-colors
-        ${canSubmit
-          ? 'bg-clinical-800 text-white opacity-60 cursor-not-allowed'
-          : 'bg-clinical-100 text-clinical-400 cursor-not-allowed'
-        }`}
-    >
-      {!isOnline ? '○ Offline' : !isComplete ? 'Incomplete' : '✓ Ready'}
-    </button>
   )
 }
