@@ -3,21 +3,21 @@
  *
  * fhir-seam / Systems of Thought — Local-First Prototype Series (Prototype 3)
  *
- * Accepts a FHIR R4 Bundle POST, validates structure, returns a FHIR
- * OperationOutcome in all cases — success and failure.
- *
- * The endpoint is deliberately stateless:
- *   - Accepts FHIR Bundle POST
- *   - Validates resourceType and entry structure
- *   - Returns OperationOutcome
- *   - Writes nothing to any database
- *
- * x-fhir-mock-mode header (for build and demo use):
+ * x-fhir-mock-mode header:
  *   success             → HTTP 200, informational OperationOutcome (default)
  *   validation-error    → HTTP 422, field-level error OperationOutcome
  *   server-unavailable  → HTTP 503, transient error OperationOutcome
  *   permanent-failure   → HTTP 500, fatal error OperationOutcome
  */
+
+// Tell Vercel to parse the request body as JSON automatically
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '1mb',
+    },
+  },
+}
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -42,16 +42,11 @@ export default function handler(req, res) {
   }
 
   // ─── Mock mode routing ──────────────────────────────────────────────────────
-  // Check x-fhir-mock-mode header first — lets build sessions test all error
-  // states without requiring simulated network conditions.
-
   const mockMode = req.headers['x-fhir-mock-mode'] ?? 'success'
 
   if (mockMode === 'validation-error') {
     return res.status(422).json(
-      operationOutcome(
-        'error',
-        'invalid',
+      operationOutcome('error', 'invalid',
         'Missing required field: Patient.birthDate',
         ['Bundle.entry[0].resource.birthDate']
       )
@@ -60,9 +55,7 @@ export default function handler(req, res) {
 
   if (mockMode === 'server-unavailable') {
     return res.status(503).json(
-      operationOutcome(
-        'fatal',
-        'transient',
+      operationOutcome('fatal', 'transient',
         'EHR system temporarily unavailable. Retry after 30 seconds.'
       )
     )
@@ -70,26 +63,18 @@ export default function handler(req, res) {
 
   if (mockMode === 'permanent-failure') {
     return res.status(500).json(
-      operationOutcome(
-        'fatal',
-        'exception',
+      operationOutcome('fatal', 'exception',
         'Intake bundle could not be processed. Contact clinic directly.'
       )
     )
   }
 
-  // ─── Structural validation ──────────────────────────────────────────────────
-  // For the default 'success' mode, validate the Bundle structure before
-  // returning success. This makes the mock endpoint behaviorally realistic —
-  // a real EHR would reject a malformed Bundle regardless of intent.
-
+  // ─── Structural validation (success mode) ──────────────────────────────────
   const body = req.body
 
   if (!body || body.resourceType !== 'Bundle') {
     return res.status(422).json(
-      operationOutcome(
-        'error',
-        'invalid',
+      operationOutcome('error', 'invalid',
         'Request body must be a FHIR R4 Bundle resource.',
         ['Bundle.resourceType']
       )
@@ -98,9 +83,7 @@ export default function handler(req, res) {
 
   if (body.type !== 'transaction') {
     return res.status(422).json(
-      operationOutcome(
-        'error',
-        'invalid',
+      operationOutcome('error', 'invalid',
         'Bundle.type must be "transaction".',
         ['Bundle.type']
       )
@@ -109,61 +92,47 @@ export default function handler(req, res) {
 
   if (!Array.isArray(body.entry) || body.entry.length < 2) {
     return res.status(422).json(
-      operationOutcome(
-        'error',
-        'invalid',
+      operationOutcome('error', 'invalid',
         'Bundle must contain at least two entries: Patient and QuestionnaireResponse.',
         ['Bundle.entry']
       )
     )
   }
 
-  // Validate Patient entry
   const patientEntry = body.entry.find(e => e.resource?.resourceType === 'Patient')
   if (!patientEntry) {
     return res.status(422).json(
-      operationOutcome(
-        'error',
-        'invalid',
+      operationOutcome('error', 'invalid',
         'Bundle must contain a Patient resource entry.',
         ['Bundle.entry']
       )
     )
   }
 
-  const patient = patientEntry.resource
-  const patientErrors = validatePatient(patient)
+  const patientErrors = validatePatient(patientEntry.resource)
   if (patientErrors.length > 0) {
     return res.status(422).json(
-      operationOutcome(
-        'error',
-        'invalid',
+      operationOutcome('error', 'invalid',
         patientErrors[0].message,
         [patientErrors[0].expression]
       )
     )
   }
 
-  // Validate QuestionnaireResponse entry
   const qrEntry = body.entry.find(e => e.resource?.resourceType === 'QuestionnaireResponse')
   if (!qrEntry) {
     return res.status(422).json(
-      operationOutcome(
-        'error',
-        'invalid',
+      operationOutcome('error', 'invalid',
         'Bundle must contain a QuestionnaireResponse resource entry.',
         ['Bundle.entry']
       )
     )
   }
 
-  const qr = qrEntry.resource
-  const qrErrors = validateQuestionnaireResponse(qr)
+  const qrErrors = validateQuestionnaireResponse(qrEntry.resource)
   if (qrErrors.length > 0) {
     return res.status(422).json(
-      operationOutcome(
-        'error',
-        'invalid',
+      operationOutcome('error', 'invalid',
         qrErrors[0].message,
         [qrErrors[0].expression]
       )
@@ -171,9 +140,6 @@ export default function handler(req, res) {
   }
 
   // ─── Success ────────────────────────────────────────────────────────────────
-  // All validation passed. Return a FHIR OperationOutcome with severity
-  // 'information' — the FHIR standard for a successful operation result.
-
   const outcomeId = generateId()
 
   return res.status(200).json({
@@ -194,78 +160,37 @@ export default function handler(req, res) {
 
 function validatePatient(patient) {
   const errors = []
-
-  if (!patient.name?.[0]?.family) {
-    errors.push({
-      message: 'Missing required field: Patient.name[0].family',
-      expression: 'Bundle.entry[0].resource.name[0].family'
-    })
-  }
-  if (!patient.name?.[0]?.given?.[0]) {
-    errors.push({
-      message: 'Missing required field: Patient.name[0].given[0]',
-      expression: 'Bundle.entry[0].resource.name[0].given[0]'
-    })
-  }
-  if (!patient.birthDate) {
-    errors.push({
-      message: 'Missing required field: Patient.birthDate',
-      expression: 'Bundle.entry[0].resource.birthDate'
-    })
-  }
-  if (!patient.gender) {
-    errors.push({
-      message: 'Missing required field: Patient.gender',
-      expression: 'Bundle.entry[0].resource.gender'
-    })
-  }
-
+  if (!patient.name?.[0]?.family)
+    errors.push({ message: 'Missing required field: Patient.name[0].family', expression: 'Bundle.entry[0].resource.name[0].family' })
+  if (!patient.name?.[0]?.given?.[0])
+    errors.push({ message: 'Missing required field: Patient.name[0].given[0]', expression: 'Bundle.entry[0].resource.name[0].given[0]' })
+  if (!patient.birthDate)
+    errors.push({ message: 'Missing required field: Patient.birthDate', expression: 'Bundle.entry[0].resource.birthDate' })
+  if (!patient.gender)
+    errors.push({ message: 'Missing required field: Patient.gender', expression: 'Bundle.entry[0].resource.gender' })
   return errors
 }
 
 function validateQuestionnaireResponse(qr) {
   const errors = []
-
   if (!Array.isArray(qr.item) || qr.item.length === 0) {
-    errors.push({
-      message: 'QuestionnaireResponse must contain at least one item.',
-      expression: 'Bundle.entry[1].resource.item'
-    })
+    errors.push({ message: 'QuestionnaireResponse must contain at least one item.', expression: 'Bundle.entry[1].resource.item' })
     return errors
   }
-
   const reasonForVisit = qr.item.find(i => i.linkId === 'reason-for-visit')
-  if (!reasonForVisit?.answer?.[0]?.valueString) {
-    errors.push({
-      message: 'Missing required item: reason-for-visit',
-      expression: 'Bundle.entry[1].resource.item[reason-for-visit]'
-    })
-  }
-
+  if (!reasonForVisit?.answer?.[0]?.valueString)
+    errors.push({ message: 'Missing required item: reason-for-visit', expression: 'Bundle.entry[1].resource.item[reason-for-visit]' })
   return errors
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/**
- * operationOutcome — constructs a FHIR R4 OperationOutcome resource.
- * Used for all responses — success and failure — per the FHIR standard.
- *
- * @param {'information'|'warning'|'error'|'fatal'} severity
- * @param {string} code - FHIR issue type code
- * @param {string} diagnostics - Human-readable description
- * @param {string[]|null} expression - FHIRPath expressions identifying the problem location
- */
 function operationOutcome(severity, code, diagnostics, expression = null) {
   const issue = { severity, code, diagnostics }
   if (expression) issue.expression = expression
   return { resourceType: 'OperationOutcome', issue: [issue] }
 }
 
-/**
- * generateId — produces a short reference ID for successful submissions.
- * Not a real EHR record ID — just a demo reference for the confirmation UI.
- */
 function generateId() {
   return `FHIR-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
 }
