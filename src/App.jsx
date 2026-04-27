@@ -145,7 +145,7 @@ function AboutView() {
         <div className="space-y-2 font-mono text-xs text-clinical-600">
           <div>Prototype 1 — AI Governance Window Tracker · infinitydrive.net</div>
           <div>Prototype 2 — checkout-seam · checkout-seam.vercel.app</div>
-          <div className="text-clinical-900 font-medium">Prototype 3 — fhir-seam · this prototype</div>
+          <div className="text-clinical-900 font-medium">Prototype 3 — fhir-seam · fhir-seam.vercel.app</div>
         </div>
       </div>
     </div>

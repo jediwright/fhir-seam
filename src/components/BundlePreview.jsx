@@ -77,7 +77,7 @@ export function BundlePreview() {
       )}
 
       <p className="text-xs text-clinical-300">
-        Phase 3 debug view · Updates live as you fill the form · Not visible in production
+        Updates live as you fill the form · Expand to inspect the FHIR R4 bundle that will be POSTed to the endpoint
       </p>
     </div>
   )
