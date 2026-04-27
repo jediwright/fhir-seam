@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: #f0f4f8;
+    color: #102a43;
+  }
+}
+
+@layer components {
+  /* Form field base — used across all intake sections */
+  .field-input {
+    @apply w-full px-3 py-2 bg-white border border-clinical-200 rounded
+           text-clinical-900 text-sm
+           focus:outline-none focus:ring-2 focus:ring-clinical-500 focus:border-transparent
+           placeholder:text-clinical-400
+           transition-colors duration-150;
+  }
+
+  .field-label {
+    @apply block text-xs font-medium uppercase tracking-wide text-clinical-600 mb-1;
+  }
+
+  .field-required {
+    @apply text-red-500 ml-0.5;
+  }
+
+  /* Section card */
+  .intake-section {
+    @apply bg-white rounded-lg border border-clinical-200 p-6 space-y-5;
+  }
+
+  .section-title {
+    @apply text-sm font-semibold uppercase tracking-widest text-clinical-500 
+           border-b border-clinical-100 pb-3 mb-5;
+  }
+
+  /* Status badges */
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-medium;
+  }
+  .badge-idle      { @apply bg-gray-100 text-gray-600; }
+  .badge-submitting { @apply bg-amber-100 text-amber-700; }
+  .badge-accepted  { @apply bg-emerald-100 text-emerald-700; }
+  .badge-retryable { @apply bg-red-100 text-red-700; }
+  .badge-permanent { @apply bg-purple-100 text-purple-700; }
+}
