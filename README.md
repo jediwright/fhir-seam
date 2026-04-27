@@ -12,7 +12,8 @@ Prototype 3 in the [Systems of Thought](https://systemsofthought.com) local-firs
 
 ## The Architectural Argument
 
-checkout-seam proved that local-first architecture works for commerce — every operation ran offline from local IndexedDB except one: the single server-dependent operation at the boundary. fhir-seam proves the same argument in a higher-stakes domain and introduces a harder version of the seam problem.
+checkout-seam proved that local-first architecture works for commerce — every operation ran offline from local IndexedDB except one: the single server-dependent operation at the seam boundary. fhir-seam proves the same argument in a higher-stakes domain and introduces a harder version of the seam problem.
+
 ```
 client (Y.js/IndexedDB) ──FHIR Bundle POST──▶ mock EHR (stateless) ──▶ client (Y.js/IndexedDB)
 ```
@@ -52,11 +53,11 @@ doc.getMap('submissions') → keyed by client UUID; full FHIR bundle + status + 
 | Phase | What | Status |
 |---|---|---|
 | 1 | Scaffold + Data Model | ✓ Complete |
-| 2 | Intake Form UI | Planned |
-| 3 | FHIR Bundle Construction | Planned |
-| 4 | Mock FHIR Endpoint | Planned |
-| 5 | Submission State Machine | Planned |
-| 6 | Deployment | Planned |
+| 2 | Intake Form UI | ✓ Complete |
+| 3 | FHIR Bundle Construction | ✓ Complete |
+| 4 | Mock FHIR Endpoint | ✓ Complete |
+| 5 | Submission State Machine | ✓ Complete |
+| 6 | Deployment | ✓ Complete |
 
 ---
 
@@ -68,16 +69,16 @@ doc.getMap('submissions') → keyed by client UUID; full FHIR bundle + status + 
 
 **FHIR Bundle construction as a pure function** — Isolate data format translation (local state → external system format) into a pure function with no network calls or side effects. Makes the mapping auditable and testable.
 
-**`attachArrayObserver()` pattern** — Applied from the start (learned from checkout-seam cart badge bug). Handles stale Y.Array references after y-indexeddb hydration.
+**`attachArrayObserver()` pattern** — Applied from the start (learned from checkout-seam). Handles stale Y.Array references after y-indexeddb hydration.
 
 ---
 
 ## Known Limitations
 
-- Mobile responsive layout not implemented (planned Phase 7)
+- Mobile responsive layout not implemented
 - Real EHR integration out of scope (requires OAuth credentialing)
 - Provider-facing view out of scope (patient side only)
-- PDF export of completed intake noted as Phase 2 candidate
+- PDF export of completed intake noted as a future feature
 
 ---
 
